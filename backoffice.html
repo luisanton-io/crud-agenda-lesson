@@ -38,6 +38,7 @@
         <div class="row">
             <div class="col-10 col-md-6 mx-auto">
                 <h1 class="text-center my-5">Backoffice</h1>
+                <h3 id="operation" class="text-center"></h3>
 
                 <form onsubmit="handleSubmit(event)">
 
@@ -55,23 +56,34 @@
                     -->
                     <!--Event Name-->
                     <label>Event Name</label>
-                    <input id="name" type="text" class="form-control" placeholder="Write here event name">
+                    <input id="name" type="text" class="form-control" placeholder="Write here event name" required>
 
                     <!--Event Description-->
                     <label>Event Description</label>
-                    <input id="description" type="text" class="form-control" placeholder="Write here event description">
+                    <input id="description" type="text" class="form-control" placeholder="Write here event description"
+                        required>
 
                     <!--Event Price-->
                     <label>Event Price</label>
-                    <input id="price" type="number" class="form-control" placeholder="Write here event price">
+                    <input id="price" type="number" class="form-control" placeholder="Write here event price" required>
 
                     <!--Event Date and time-->
                     <label>Event Date and Time</label>
                     <input id="time" type="datetime-local" class="form-control"
-                        placeholder="Write here event date and time">
+                        placeholder="Write here event date and time" required>
 
-                    <div class="d-flex">
-                        <input type="submit" class="btn btn-primary w-50 mx-auto">
+                    <div class="d-flex justify-content-between">
+                        <button type="submit"
+                            class="btn btn-primary w-50 mx-auto d-flex justify-content-center align-items-center">
+                            <span id="spinner" class="d-none spinner-border spinner-border-sm mr-2" role="status"
+                                aria-hidden="true"></span>
+                            Submit
+                        </button>
+
+                        <button type="button" id="delete-btn" onclick="deleteEvent()"
+                            class="d-none btn btn-danger text-white mx-auto">
+                            <ion-icon name="trash-outline"></ion-icon>
+                        </button>
                     </div>
 
                 </form>
@@ -81,10 +93,65 @@
     </div>
 
     <script>
-        const endpoint = "https://striveschool-api.herokuapp.com/api/agenda"
+
+        const params = new URLSearchParams(location.search)
+        const id = params.get('id')
+
+        const endpoint =
+            id
+                ? "https://striveschool-api.herokuapp.com/api/agenda/" + id
+                : "https://striveschool-api.herokuapp.com/api/agenda/"
+
+        const method = id ? "PUT" : "POST"
+
+        const operation = document.querySelector("#operation")
+
+        window.onload = async () => {
+            console.log(id)
+
+            if (id) {
+                operation.innerHTML = "Editing event"
+
+                try {
+                    const response = await fetch(endpoint)
+
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            location.assign("index.html")
+                            throw new Error("This event does not exist!")
+                            // go to catch block
+                        }
+                        throw new Error("Something went wrong with code " + response.status)
+                        // go to catch block
+                    }
+
+                    const event = await response.json()
+                    populateFields(event)
+
+                } catch (error) {
+                    console.log(error)
+                    alert(error.message)
+                    // from here, continue
+                }
+
+                document.querySelector('#delete-btn').classList.remove("d-none")
+
+            } else {
+                operation.innerHTML = "Creating new event"
+            }
+        }
+
+        function populateFields(event) {
+            document.querySelector('#name').value = event.name
+            document.querySelector('#description').value = event.description
+            document.querySelector('#price').value = event.price
+            document.querySelector('#time').value = event.time.slice(0, -5)
+        }
 
         async function handleSubmit(event) {
-            event.preventDefault();
+            event.preventDefault(); // prevents the default handling by the browser
+
+            setLoading(true)
 
             const newEvent = {
                 name: document.querySelector("#name").value,
@@ -95,58 +162,74 @@
 
             console.log(newEvent)
 
-            // const response = await fetch(endpoint, {
-            //     method: "POST", // "GET", "POST", "PUT", "DELETE"
-            //     headers: {
-            //         "Content-Type": "application/json"
-            //     },
-            //     body: JSON.stringify(newEvent)
-            // })
-
-            // if (response.ok) {
-            //     const data = await response.json()
-
-            //     alert("Event added successfully with id " + data._id)
-            // } else {
-            //     alert("Something went wrong.")
-            // }
-
             try {
                 const response = await fetch(endpoint, {
-                    method: "POST", // "GET", "POST", "PUT", "DELETE"
+                    method, // "GET", "POST", "PUT", "DELETE"
                     headers: {
                         "Content-Type": "application/json"
+                        // lets the server know what content we are sending in the body
                     },
                     body: JSON.stringify(newEvent)
                 })
 
-                if (!response.ok) throw new Error("Failed to post")
+                // What could possibly go wrong?
+                // - wrong keys
+                // - wrong endpoint
+                // - duplicate entry
+                // - wrong HTTP verb
+
+                if (!response.ok) {
+                    const data = await response.json()
+                    const code = data.error.code
+
+                    if (code === 11000) {
+                        throw new Error("This event already exists!")
+                    }
+                    else throw new Error("Failed to post")
+                }
 
                 const data = await response.json()
-                alert("Event added successfully with id " + data._id)
+
+                alert(`Event ${id ? "updated" : "added"} successfully with id ${data._id}`)
+                location.assign("index.html")
 
             } catch (error) {
+                console.log(error)
+                alert(error.message)
+            } finally {
+                setLoading(false)
+            }
+
+        }
+
+        async function deleteEvent() {
+            setLoading(true)
+
+            try {
+                const response = await fetch(endpoint, { method: "DELETE" })
+                if (!response.ok) throw new Error("Something went wrong")
+
+                alert("Event deleted successfully")
+                location.assign("index.html")
+
+            } catch (error) {
+                console.log(error)
                 alert(error.message)
             }
 
+            setLoading(false)
 
-            // status code
+        }
 
-            // response.ok is just a check made from fetch that the status is "success"
-
-            // 200-299 // success
-
-            // 400-499 // client-side request error
-            // 500-599 // server side error
-
-
-
+        function setLoading(loading) {
+            if (loading) {
+                document.querySelector("#spinner").classList.remove("d-none")
+            } else {
+                document.querySelector("#spinner").classList.add("d-none")
+            }
         }
     </script>
 
-    <!-- Optional JavaScript; choose one of the two! -->
-
-    <!-- Option 1: jQuery and Bootstrap Bundle (includes Popper) -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
         integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
         crossorigin="anonymous"></script>
@@ -154,12 +237,8 @@
         integrity="sha384-Piv4xVNRyMGpqkS2by6br4gNJ7DXjqk09RmUpJ8jgGtD7zP9yug3goQfGII0yAns"
         crossorigin="anonymous"></script>
 
-    <!-- Option 2: Separate Popper and Bootstrap JS -->
-    <!--
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
-    -->
+    <script src="https://unpkg.com/ionicons@5.4.0/dist/ionicons.js"></script>
+
 </body>
 
 </html>

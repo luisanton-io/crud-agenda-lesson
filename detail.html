@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
         integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
 
-    <title>Hello, world!</title>
+    <title>Detail Page</title>
 </head>
 
 <body>
@@ -22,23 +22,37 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
             <div class="navbar-nav">
-                <a class="nav-link active" href="#">Home <span class="sr-only">(current)</span></a>
+                <a class="nav-link active" href="index.html">Home <span class="sr-only">(current)</span></a>
                 <a class="nav-link" href="backoffice.html">Backoffice</a>
             </div>
         </div>
     </nav>
 
-
     <div class="container">
         <div class="row">
             <div class="col-10 col-md-6 mx-auto">
-                <h1 class="text-center my-5">Strive Agenda</h1>
+                <h1 class="text-center my-5">Event detail</h1>
 
-                <ul id="event-list" class="list-group">
-                    <!--
-                        <li class="list-group-item">An item</li>
-                    -->
-                </ul>
+                <h4 id="name" class="text-center"></h4>
+                <div>
+                    <h6>Details:</h6>
+                    <p id="description"></p>
+                </div>
+                <div>
+                    <p class="d-flex justify-content-between">
+                        <strong>Price:</strong>
+                        <span id="price"></span>
+                    </p>
+                </div>
+                <div>
+                    <p class="d-flex justify-content-between">
+                        <strong>Date and time:</strong>
+                        <span id="time"></span>
+                    </p>
+                </div>
+
+                <div class="d-flex" id="edit">
+                </div>
 
             </div>
         </div>
@@ -46,54 +60,34 @@
 
 
     <script>
+        const params = new URLSearchParams(location.search)
+        const id = params.get('id')
 
-        const eventList = document.querySelector("#event-list")
         const endpoint = "https://striveschool-api.herokuapp.com/api/agenda/"
 
-        window.onload = async function () {
+        window.onload = async () => {
+            // document.querySelector('h1').innerHTML += " " + id
 
-            try {
-                const events = await loadEvents()
-                displayEvents(events)
-            } catch (error) {
-                alert(error.message)
-            }
+            const response = await fetch(endpoint + id)
+            const event = await response.json()
 
-            console.log("something after everything here")
-
+            console.log(event)
+            displayEvent(event)
         }
 
-        async function loadEvents() {
-            const response = await fetch(endpoint)
+        function displayEvent(event) {
+            document.querySelector('#name').innerHTML = event.name
+            document.querySelector('#description').innerHTML = event.description
+            document.querySelector('#price').innerHTML = event.price
+            document.querySelector('#time').innerHTML = event.time
 
-            if (response.ok) {
-                const events = await response.json()
-                return events
-            } else {
-                throw new Error("Failed to fetch events")
-            }
+            document.querySelector('#edit').innerHTML = `
+                <a class="btn btn-primary mx-auto w-50" href="backoffice.html?id=${event._id}">Edit</a>
+            `
         }
 
-        function displayEvents(events) {
-
-            eventList.innerHTML = ""
-
-            console.log(events)
-
-            for (let event of events) {
-                eventList.innerHTML += `
-                    <li class="d-flex list-group-item align-items-center">
-                        <span>${event.name}</span>
-                        <span class="ml-auto">$${event.price}</span>
-                        <a class="btn btn-secondary mx-2" href="detail.html?id=${event._id}">Detail</a>
-                    </li>
-                `
-            }
-        }
-
-
+        // console.log(id)
     </script>
-
 
     <!-- Optional JavaScript; choose one of the two! -->
 
